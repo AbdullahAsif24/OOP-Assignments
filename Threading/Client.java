@@ -1,3 +1,5 @@
+package Threading;
+
 import java.io.*;
 import java.net.*;
 
@@ -8,22 +10,36 @@ public class Client {
 
         BufferedReader inputFromServer = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         PrintWriter outputToServer = new PrintWriter(socket.getOutputStream(), true);
-
         BufferedReader keyboard = new BufferedReader(new InputStreamReader(System.in));
 
-        String msgToServer, msgFromServer;
+        // Thread to listen for server messages
+        Thread receiveThread = new Thread(() -> {
+            try {
+                String msgFromServer;
+                while ((msgFromServer = inputFromServer.readLine()) != null) {
+                    if (msgFromServer.equalsIgnoreCase("exit")) {
+                        System.out.println("Server closed connection.");
+                        System.exit(0);
+                    }
+                    System.out.println("\nServer: " + msgFromServer);
+                    System.out.print("You: "); // prompt again
+                }
+            } catch (IOException e) {
+                System.out.println("Disconnected from server.");
+            }
+        });
+        receiveThread.start();
 
+        // Main thread: send messages
+        String msgToServer;
         while (true) {
             System.out.print("You: ");
             msgToServer = keyboard.readLine();
             outputToServer.println(msgToServer);
 
-            if (msgToServer.equalsIgnoreCase("exit")) break;
-
-            msgFromServer = inputFromServer.readLine();
-            if (msgFromServer.equalsIgnoreCase("exit")) break;
-
-            System.out.println("Server: " + msgFromServer);
+            if (msgToServer.equalsIgnoreCase("exit")) {
+                break;
+            }
         }
 
         socket.close();

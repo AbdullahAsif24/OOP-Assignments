@@ -1,77 +1,95 @@
+package Threading;
+
 import java.io.*;
 import java.net.*;
+import java.util.ArrayList;
 
 public class Server_multiple_client_at_a_time {
+    public static ArrayList<PrintWriter> clientsOutputList = new ArrayList<>();
+
     public static void main(String[] args) throws Exception {
         ServerSocket serverSocket = new ServerSocket(8888);
         System.out.println("Server started. Waiting for clients...");
 
+        // broadcast to client
+        ServerSendMsgThread sth = new ServerSendMsgThread();
+        sth.start();
+
+        // clients connect
         while (true) {
             Socket socket = serverSocket.accept();
             System.out.println("New client connected: " + socket.getInetAddress());
 
             // Start a new thread for this client
-            ClientHandler handler = new ClientHandler(socket);
-            new Thread(handler).start();
+            ServerThread th = new ServerThread(socket);
+            th.start();
+
         }
 
     }
 }
 
-class ClientHandler implements Runnable {
+
+
+class ServerSendMsgThread extends Thread {
+    public void run() {
+        try {
+            BufferedReader keyboard = new BufferedReader(new InputStreamReader(System.in));
+
+            String msgToClients;
+
+            while (true) {
+                msgToClients = keyboard.readLine();
+                broadcast(msgToClients);
+
+                if (msgToClients.equalsIgnoreCase("exit")) {
+                    System.out.println("Shutting down server...");
+                    System.exit(0);
+                }
+            }
+
+        } catch (Exception e) {
+            // TODO: handle exception
+        }
+    }
+
+    public static void broadcast(String msg) {
+        for (PrintWriter writer : Server_multiple_client_at_a_time.clientsOutputList) {
+            writer.println(msg);
+        }
+    }
+}
+
+
+
+class ServerThread extends Thread {
     private Socket socket;
 
-    ClientHandler(Socket socket) {
+    ServerThread(Socket socket) {
         this.socket = socket;
     }
 
-    
-
     public void run() {
         try {
-            BufferedReader inputFromClient = new BufferedReader(
-                    new InputStreamReader(socket.getInputStream()));
+            BufferedReader inputFromClient = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             PrintWriter outputToClient = new PrintWriter(socket.getOutputStream(), true);
 
+
+            Server_multiple_client_at_a_time.clientsOutputList.add(outputToClient);
+            
             String msgFromClient;
-            String msgToClient = "";
-
-            while ((msgFromClient = inputFromClient.readLine()) != null) {
-                if (msgFromClient.equalsIgnoreCase("quit")) {
-                    break;
-                } else if (msgFromClient.split(" ")[0].equalsIgnoreCase("files")) {
-                    File folder = new File(
-                            "E:\\UBIT\\2nd semester\\OOP-Java\\TCP-connection\\file-commands-client-server\\files");
-                    File[] filesList = folder.listFiles();
-
-                    StringBuilder filesNamesList = new StringBuilder();
-                    for (File file : filesList) {
-                        filesNamesList.append(file.getName()).append("\n");
-                    }
-                    msgToClient = filesNamesList.toString();
-                } else if (msgFromClient.split(" ")[0].equalsIgnoreCase("get")) {
-                    String fileName = msgFromClient.split(" ")[1];
-                    BufferedReader br = new BufferedReader(new FileReader(
-                            "E:\\UBIT\\2nd semester\\OOP-Java\\TCP-connection\\file-commands-client-server\\files\\"
-                                    + fileName));
-
-                    String line;
-                    StringBuilder fileContent = new StringBuilder();
-                    while ((line = br.readLine()) != null) {
-                        fileContent.append(line).append("\n");
-                    }
-                    br.close();
-                    msgToClient = fileContent.toString();
-                }
-
-                System.out.println("Client " + socket.getInetAddress() + ": " + msgFromClient);
-                outputToClient.println(msgToClient);
-                outputToClient.println("END");
-                msgToClient = "";
+            
+            while (true) {
+                msgFromClient = inputFromClient.readLine();
+                if (msgFromClient.equalsIgnoreCase("exit"))
+                break;
+                
+                System.out.println(ServerThread.currentThread().getName() + msgFromClient);
+                
             }
-
+            
             socket.close();
-            System.out.println("Client disconnected: " + socket.getInetAddress());
+            Server_multiple_client_at_a_time.clientsOutputList.remove(outputToClient);
 
         } catch (Exception e) {
             System.out.println("Error handling client: " + e.getMessage());
