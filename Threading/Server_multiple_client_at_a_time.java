@@ -84,7 +84,7 @@ class ServerThread extends Thread {
                 if (msgFromClient.equalsIgnoreCase("exit"))
                 break;
                 
-                System.out.println(ServerThread.currentThread().getName() + msgFromClient);
+                System.out.println("Client " +ServerThread.currentThread().getName().split("-")[1] + " : " + msgFromClient);
                 
             }
             
